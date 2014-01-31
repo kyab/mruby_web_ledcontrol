@@ -1,0 +1,55 @@
+AT
+
+OK
+AT+RESET
+
+APP Reset-APP SW Reset
+AT
+
+AT
+OK
+AT+RESET
+APP Reset-APP SW Reset
+AT
+OK
+
+
+ATV1
+OK
+
+
+ATE1
+OK
+AT&K0
+OK
+
+
+AT&R0
+OK
+
+
+AT+WAUTH=0
+OK
+
+
+AT+WSEC=0
+OK
+
+
+AT+WPAPSK=0024A5C24290_G,3n6xn7hyxurup
+Computing PSK from SSID and PassPhrase...
+OK
+
+
+AT+SETTIME=26/07/2013,21:45:57
+OK
+
+
+AT+NDHCP=1
+OK
+
+
+AT+WA=0024A5C24290_G
+IP              SubNet         Gateway   
+ 192.168.107.15: 255.255.255.0: 192.168.107.1
+OK
