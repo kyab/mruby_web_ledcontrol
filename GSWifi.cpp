@@ -80,9 +80,9 @@ bool GSWifiStack::kyInitializeStack(){
     if (doStore){
         //key calc
         printf("now calculate key. it will take seconds\n");
-        //sendReceivePrint("AT+WPAPSK=0024A5C24290_G,3n6xn7hyxurup");
+        sendReceivePrint("AT+WPAPSK=0024A5C24290_G,3n6xn7hyxurup");
         //sendReceivePrint("AT+WPAPSK=kyab_iPhone,12345678");
-        sendReceivePrint("AT+WPAPSK=rubyconforum02,forumfukuoka02");
+        //sendReceivePrint("AT+WPAPSK=rubyconforum02,forumfukuoka02");
 
         sendReceivePrint("AT&W1");  //save to profile 0
         sendReceivePrint("AT&Y1");  //set default profile to 0
@@ -93,7 +93,7 @@ bool GSWifiStack::kyInitializeStack(){
         sendReceivePrint("ATZ1");   //load profile 0
     }
 
-    bool useDHCP = true;
+    bool useDHCP = false;
     if (useDHCP){
         sendReceivePrint("AT+NDHCP=1");     //enable DHCP Client
 
@@ -109,7 +109,8 @@ bool GSWifiStack::kyInitializeStack(){
 
     
     //OK, let's Associate/Start with Wireless
-    sendReceivePrint("AT+WA=rubyconforum02");
+    sendReceivePrint("AT+WA=0024A5C24290_G");
+    //sendReceivePrint("AT+WA=rubyconforum02");
     //sendReceivePrint("AT+WA=kyab_iPhone");
     sendReceivePrint("AT+BDATA=1");	//enable bulk
     return true;

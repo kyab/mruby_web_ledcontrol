@@ -4,12 +4,13 @@
 #
 
 SerialHost = Serial3
+
 class Blinker
 	include Arduino
 	attr_accessor :interval ,:pin
 	
 	def initialize(pin,interval_ms)
-		SerialHost.println("Blinker initialized")
+		SerialHost.println("Blinker initialized(from mruby)")
 		@pin = pin
 		@interval = interval_ms
 		pinMode(@pin, OUTPUT)

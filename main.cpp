@@ -46,7 +46,8 @@ My understanding for pin availability for Serial is as belows.
 */
 
 
-
+// char *const CCM_RAM_BASE = (char *)0x10000000;
+// char *g_ccm_heap_next;
 
 mrb_state *mrb;
 int ai;
@@ -55,9 +56,6 @@ size_t total_size = 0;
 extern const uint8_t script[];
 mrb_value blinker_obj;
 mrb_value server_obj;
-
-char *const CCM_RAM_BASE = (char *)0x10000000;
-char *g_ccm_heap_next;
 
 static void
 p(mrb_state *mrb, mrb_value obj)
@@ -72,8 +70,9 @@ p(mrb_state *mrb, mrb_value obj)
 extern "C"{
 
     void _exit(int rc){
+        SerialHost.println("[newlib stub] _exit called.");
         while(1){
-
+            //delay(100);
         }
     }
     int _getpid(){
@@ -84,6 +83,15 @@ extern "C"{
     int _kill(int pid, int sig){
         errno = EINVAL;
         return -1;
+    }
+
+    void abort(void){
+        digitalWrite(LED_RED, HIGH);
+        digitalWrite(LED_BLUE, HIGH);
+        SerialHost.println("[newlib stub] aborted!");
+        for(;;){
+            //delay(200);
+        }
     }
 
     //http://todotani.cocolog-nifty.com/blog/2010/05/mbed-gccprintf-.html
@@ -105,6 +113,7 @@ void initBlinker(){
     RClass *blinker_class = mrb_class_get(mrb, "Blinker");
     if (mrb->exc){
         SerialHost.println("failed to load class Blinker");
+        return;
     }
 
     mrb_value args[2];
@@ -125,6 +134,7 @@ void initServer(){
     RClass *server_class = mrb_class_get(mrb, "WebServer");
     if (mrb->exc){
         SerialHost.println("failed to load class WebServer");
+        return;
     }
 
     server_obj = mrb_class_new_instance(mrb, 0, NULL, server_class);
@@ -136,13 +146,32 @@ void initServer(){
     printf("server_obj initialized\n");
 }
 
-// custom allocator to check heap shortage.
-void *myallocf(mrb_state *mrb, void *p, size_t size, void *ud){
+/* 
+
+custom allocator
+
+*/
+
+#ifdef VERBOSE_MALLOC
+#define malloc_putc(x) SerialHost.print(x)
+#else
+#define malloc_putc(x)
+#endif
+
+int failcount = 0;
+unsigned int high;
+void *myallocfCCM(mrb_state *mrb, void *p, size_t size, void *ud)
+{
+
+    static char *CCM_RAM_BASE = (char *)0x10000000;
+    static char *g_ccm_heap_next = CCM_RAM_BASE;
+
+    malloc_putc('.');
     if (size == 0){
-        if (CCM_RAM_BASE <= p && (unsigned int)p <= (unsigned int)CCM_RAM_BASE + 40*1024){
-            //printf("ignore free ccm area:0x%X\n", p);
+        if (CCM_RAM_BASE <= p && (unsigned int)p <= (unsigned int)CCM_RAM_BASE + 50*1024){
+            malloc_putc('-');
         }else{
-            //printf("free area:0x%X\n",p);
+            malloc_putc('F');
             free(p);
         }
 
@@ -150,8 +179,8 @@ void *myallocf(mrb_state *mrb, void *p, size_t size, void *ud){
     }
 
     void *ret = NULL;
-    if ((unsigned int)g_ccm_heap_next < (unsigned int)CCM_RAM_BASE + 40*1024){ //first 40kb is special ccm heap
-        //printf("ccm heap : 0x%X, %u\n", g_ccm_heap_next, size);
+    if ((unsigned int)g_ccm_heap_next < (unsigned int)CCM_RAM_BASE + 50*1024){ //first 46kb is special ccm heap
+        malloc_putc('C');
         ret = g_ccm_heap_next;
         g_ccm_heap_next += size;
 
@@ -161,11 +190,25 @@ void *myallocf(mrb_state *mrb, void *p, size_t size, void *ud){
         }
 
     }else{
+        malloc_putc('N');
         ret = realloc(p, size);
         if (!ret){
-            SerialHost.println("MALLOC FAILED");
-            printf("memory allocation error. size:%u\n", size);
+            SerialHost.print('!');
+            SerialHost.print("\n!!!memory allocation error for size:");
+            SerialHost.print(size, DEC);
+            SerialHost.print("\n\tcurrent total :");
+            SerialHost.print(total_size, DEC);
+            SerialHost.print("\n\tfail count : ");
+            SerialHost.println(++failcount, DEC);    
+            delay(1000);
+            return NULL;
         }
+
+        unsigned int point = (unsigned int)ret + size;
+        if (point > high){
+            high = point;
+        }
+
     }
     total_size += size;
     return ret;
@@ -175,51 +218,67 @@ void *myallocf(mrb_state *mrb, void *p, size_t size, void *ud){
 TCPServer server;
 List<TCPSocket *> sockets;
 void setup() {
-
-    SerialWifi.begin(38400);    //Use Serial2 for Wifi
-    //SerialHost.begin(9600);    //Use Serial3 for Host debug(output only)
     SerialHost.begin(38400);
-    delay(500);
+    SerialHost.println("");
+    SerialHost.println("--------------------------------------------");
+    SerialHost.println("      mruby web led controller    ");
+    SerialHost.println("--------------------------------------------");
 
-    printf("%d,%d,%d,%d\n", LED_GREEN, LED_ORANGE, LED_RED,LED_BLUE);
+    pinMode(LED_BLUE, OUTPUT);
+    pinMode(LED_ORANGE, OUTPUT);
+    pinMode(LED_RED, OUTPUT);
+    pinMode(LED_GREEN, OUTPUT);
 
-    GSWifiStack::instance()->kyInitializeStack();
-    server.listen(80);
+    //init Wifi
+    // SerialWifi.begin(38400);
+    // delay(500);
+    // GSWifiStack::instance()->kyInitializeStack();
+    // server.listen(80);
+    // SerialHost.println("WiFi initialized");
 
 
-    g_ccm_heap_next = CCM_RAM_BASE;
+    //init mruby
+    printf("mrb_open...\n");
+    mrb = mrb_open_allocf(myallocfCCM, NULL);
+    if (mrb == NULL){
+        SerialHost.println("failed to mrb_open()");
+        delay(100);
+    }else{
+        SerialHost.print("mrb_open done ");
+        SerialHost.print(" total allocated size = ");
+        SerialHost.print(total_size, DEC);
+        SerialHost.println("[bytes]");
+    }
 
-    //check ccm area
-    // while ((unsigned int)g_ccm_heap_next < (unsigned int)CCM_RAM_BASE + 40*1024){
-    //     printf("area:0x%X...",g_ccm_heap_next);
-    //     *((int *)g_ccm_heap_next) = 77777;
-    //     if (*((int *)g_ccm_heap_next) == 77777){
-    //         printf("OK\n");
-    //     }else{
-    //         printf("NG\n");
-    //     }
-    //     g_ccm_heap_next += 0x0101;
-    // }
-    // g_ccm_heap_next = CCM_RAM_BASE;
-
-    printf("now to call mrb_open...\n");
-    unsigned long start = millis();
-    mrb = mrb_open_allocf(myallocf, NULL);
-    printf("mrb_open done. takes %lu ms. total:%u(bytes)\n",
-            millis()-start, total_size);
-
+    SerialHost.println("loading irep...");
     ai = mrb_gc_arena_save(mrb);
     mrb_load_irep(mrb, script);
+    if (mrb->exc){
+        p(mrb, mrb_obj_value(mrb->exc));
+        mrb->exc = NULL;
+        return;
+    }
     mrb_gc_arena_restore(mrb, ai);
-
+   
+    SerialHost.println("initializing blinker...");
     initBlinker();
+    if (mrb->exc){
+        p(mrb, mrb_obj_value(mrb->exc));
+        mrb->exc = NULL;
+        return;
+    }
+    SerialHost.println("initializing Server...");
     initServer();
+    if (mrb->exc){
+        p(mrb, mrb_obj_value(mrb->exc));
+        mrb->exc = NULL;
+        return;
+    }
     ai = mrb_gc_arena_save(mrb);
 
-    // pinMode(LED_ORANGE , OUTPUT);
-    // digitalWrite(LED_ORANGE, HIGH);
-
     SerialHost.println("now get into loop");
+
+    return;
 }
 
 //return true if responsed.

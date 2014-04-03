@@ -88,7 +88,6 @@ endif
 #GLOBAL_FLAGS += -DDISABLEUSB
 #GLOBAL_FLAGS += -DUSB_DISC_OD
 
-GLOBAL_FLAGS += -DMRB_WORD_BOXING
 GLOBAL_FLAGS += -DUSART_RX_BUF_SIZE=2048
 		   
 GLOBAL_CFLAGS   := -Os -g3 -gdwarf-2  -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=softfp \
@@ -128,8 +127,8 @@ LIBMAPLE_MODULES += $(SRCROOT)/libraries/LiquidCrystal
 LIBMAPLE_MODULES += $(SRCROOT)/libraries/Wire
 
 # Experimental libraries:
-LIBMAPLE_MODULES += $(SRCROOT)/libraries/FreeRTOS
-LIBMAPLE_MODULES += $(SRCROOT)/libraries/mapleSDfat
+# LIBMAPLE_MODULES += $(SRCROOT)/libraries/FreeRTOS
+# LIBMAPLE_MODULES += $(SRCROOT)/libraries/mapleSDfat
 
 # Call each module's rules.mk:
 $(foreach m,$(LIBMAPLE_MODULES),$(eval $(call LIBMAPLE_MODULE_template,$(m))))
@@ -149,17 +148,20 @@ WIRISH_INCLUDES += -I$(SRCROOT)/libraries
 build_dir : $(BUILD_PATH)
 	mkdir -p $<
 
-$(BUILD_PATH)/main.o: main.cpp GSWifi.h
+$(BUILD_PATH)/main.o: main.cpp GSWifi.h script.c
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $(LIBMAPLE_INCLUDES) $(WIRISH_INCLUDES) $(MRUBY_INCLUDES) -o $@ -c $< 
 
 $(BUILD_PATH)/GSWifi.o: GSWifi.cpp GSWifi.h
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $(LIBMAPLE_INCLUDES) $(WIRISH_INCLUDES) -o $@ -c $< 
 
 script.c: blinker.rb server.rb
-	mrbc -Bscript -oscript.c blinker.rb server.rb
+	mrbc -g -Bscript -oscript.c blinker.rb server.rb
 
-$(BUILD_PATH)/blinker.o: script.c
+$(BUILD_PATH)/script.o: script.c
 	$(CC) $(CFLAGS) -o $@ -c $< 
+
+upload: sketch
+	st-flash write $(BUILD_PATH)/$(BOARD).bin 0x08000000
 
 .PHONY: install sketch clean help debug cscope tags ctags ram flash jtag doxygen mrproper
 
@@ -190,6 +192,7 @@ endif
 sketch: build-check MSG_INFO $(BUILD_PATH)/$(BOARD).bin
 
 clean:
+	rm script.c
 	rm -rf build
 
 mrproper: clean
