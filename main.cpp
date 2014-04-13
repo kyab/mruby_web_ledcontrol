@@ -230,11 +230,11 @@ void setup() {
     pinMode(LED_GREEN, OUTPUT);
 
     //init Wifi
-    // SerialWifi.begin(38400);
-    // delay(500);
-    // GSWifiStack::instance()->kyInitializeStack();
-    // server.listen(80);
-    // SerialHost.println("WiFi initialized");
+    SerialWifi.begin(38400);
+    delay(500);
+    GSWifiStack::instance()->kyInitializeStack();
+    server.listen(80);
+    SerialHost.println("WiFi initialized");
 
 
     //init mruby

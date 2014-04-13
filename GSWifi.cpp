@@ -76,21 +76,19 @@ bool GSWifiStack::kyInitializeStack(){
 
     //sendReceivePrint("AT&W0");
 
-    bool doStore = true;
+    bool doStore = false;
     if (doStore){
         //key calc
         printf("now calculate key. it will take seconds\n");
         sendReceivePrint("AT+WPAPSK=0024A5C24290_G,3n6xn7hyxurup");
-        //sendReceivePrint("AT+WPAPSK=kyab_iPhone,12345678");
-        //sendReceivePrint("AT+WPAPSK=rubyconforum02,forumfukuoka02");
 
-        sendReceivePrint("AT&W1");  //save to profile 0
-        sendReceivePrint("AT&Y1");  //set default profile to 0
-        sendReceivePrint("ATZ1");   //load profile 0
+        sendReceivePrint("AT&W1");  //save to profile 1
+        sendReceivePrint("AT&Y1");  //set default profile to 1
+        sendReceivePrint("ATZ1");   //load profile 1
     }else{
         //load key
         printf("Loading profile..\n");
-        sendReceivePrint("ATZ1");   //load profile 0
+        sendReceivePrint("ATZ1");   //load profile 1
     }
 
     bool useDHCP = false;
@@ -99,19 +97,14 @@ bool GSWifiStack::kyInitializeStack(){
 
         //DNS will be also configured (even no output)
         //
+
     }else{
         sendReceivePrint("AT+NSET=192.168.107.200,255.255.255.0,192.168.107.1");
         sendReceivePrint("AT+DNSSET=192.168.107.1");
-
-        // sendReceivePrint("AT+NSET=172.20.10.10,255.255.240.0,172.20.10.1");
-        // sendReceivePrint("AT+DNSSET=172.20.10.1");
     }
 
-    
     //OK, let's Associate/Start with Wireless
     sendReceivePrint("AT+WA=0024A5C24290_G");
-    //sendReceivePrint("AT+WA=rubyconforum02");
-    //sendReceivePrint("AT+WA=kyab_iPhone");
     sendReceivePrint("AT+BDATA=1");	//enable bulk
     return true;
 }

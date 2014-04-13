@@ -90,7 +90,10 @@ endif
 
 GLOBAL_FLAGS += -DUSART_RX_BUF_SIZE=2048
 		   
-GLOBAL_CFLAGS   := -Os -g3 -gdwarf-2  -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=softfp \
+# GLOBAL_CFLAGS   := -Os -g3 -gdwarf-2  -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=softfp \
+# 		   -nostdlib -ffunction-sections -fdata-sections	     \
+# 		   -Wl,--gc-sections $(GLOBAL_FLAGS)
+GLOBAL_CFLAGS   := -O0 -g3 -gdwarf-2  -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=softfp \
 		   -nostdlib -ffunction-sections -fdata-sections	     \
 		   -Wl,--gc-sections $(GLOBAL_FLAGS)
 GLOBAL_CXXFLAGS := -fno-rtti -fno-exceptions -Wall $(GLOBAL_FLAGS)
